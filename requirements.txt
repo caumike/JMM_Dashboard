@@ -1,0 +1,221 @@
+# requirements.txt
+streamlit==1.32.0
+pandas==2.2.0
+plotly==5.19.0
+python-dotenv==1.0.0
+sqlite3  # Built-in, no need to install
+asyncio  # Built-in
+dataclasses  # Built-in
+
+# For production enhancements (add as needed):
+# psycopg2-binary==2.9.9  # For PostgreSQL
+# supabase==2.3.0  # For Supabase
+# google-api-python-client==2.100.0  # For Gmail API
+# google-auth==2.23.0
+# python-docx==1.1.0  # For .docx processing
+# language-tool-python==2.7.1  # For spell checking
+# openai==1.10.0  # For GPT-4 integration
+# anthropic==0.18.0  # For Claude integration
+# redis==5.0.1  # For caching
+# celery==5.3.4  # For async tasks
+# slack-sdk==3.26.0  # For Slack alerts
+
+---
+# .env file (create this locally, do not commit to git)
+# Gmail API credentials (when ready to integrate)
+GMAIL_SERVICE_ACCOUNT_KEY=path/to/service-account-key.json
+GMAIL_DELEGATED_USER=admin@yourdomain.com
+
+# Database (for production)
+DATABASE_URL=sqlite:///nda_dashboard.db
+# DATABASE_URL=postgresql://user:password@host:port/dbname
+
+# AI API Keys (when ready to integrate)
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+
+# Alert settings
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+ALERT_EMAIL=team@yourdomain.com
+
+# Security (simplified for internal use)
+DASHBOARD_PASSWORD=your-secure-password
+
+---
+# .streamlit/config.toml
+[theme]
+primaryColor = "#4169E1"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+
+[server]
+headless = true
+port = 8501
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+---
+# Dockerfile (for containerized deployment)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application
+COPY . .
+
+# Create data directory
+RUN mkdir -p /app/data
+
+# Expose port
+EXPOSE 8501
+
+# Run Streamlit
+CMD ["streamlit", "run", "main_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+---
+# docker-compose.yml (for local development with all services)
+version: '3.8'
+
+services:
+  streamlit:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=sqlite:///data/nda_dashboard.db
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
+    restart: unless-stopped
+
+  # Optional: Add PostgreSQL for production
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: nda_dashboard
+  #     POSTGRES_USER: nda_user
+  #     POSTGRES_PASSWORD: secure_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+  # Optional: Add Redis for caching
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+
+volumes:
+  postgres_data:
+
+---
+# deploy_streamlit_cloud.sh
+#!/bin/bash
+
+# Script to deploy to Streamlit Cloud
+
+echo "Deploying to Streamlit Cloud..."
+
+# 1. Ensure you're logged into Streamlit Cloud
+# 2. Connect your GitHub repository
+# 3. The app will auto-deploy from main branch
+
+# Required files in repo:
+# - main_app.py
+# - requirements.txt
+# - .streamlit/config.toml
+
+echo "Deployment instructions:"
+echo "1. Push code to GitHub"
+echo "2. Go to share.streamlit.io"
+echo "3. Connect your GitHub repo"
+echo "4. Select main_app.py as the main file"
+echo "5. Add secrets in Streamlit Cloud settings"
+
+---
+# Makefile (for easy local development)
+.PHONY: install run clean test deploy
+
+install:
+	pip install -r requirements.txt
+
+run:
+	streamlit run main_app.py
+
+run-docker:
+	docker-compose up --build
+
+clean:
+	find . -type f -name '*.pyc' -delete
+	find . -type d -name '__pycache__' -delete
+	rm -f nda_dashboard.db
+
+test:
+	python -m pytest tests/
+
+deploy-streamlit:
+	./deploy_streamlit_cloud.sh
+
+setup-db:
+	python -c "from main_app import DatabaseManager; DatabaseManager()"
+
+---
+# .gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data
+data/
+uploads/
+exports/
+
+# Secrets
+*.pem
+*.key
+service-account-key.json
