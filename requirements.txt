@@ -1,25 +1,4 @@
-# requirements.txt - FIXED VERSION
 streamlit==1.32.0
 pandas==2.2.0
-plotly==5.19.0
+plotly==5.18.0
 python-dotenv==1.0.0
-
-# Note: These are built-in Python modules, DO NOT include:
-# sqlite3 - built-in
-# asyncio - built-in  
-# dataclasses - built-in
-
-# For future production enhancements (uncomment as needed):
-# psycopg2-binary==2.9.9  # For PostgreSQL
-# supabase==2.3.0  # For Supabase
-# google-api-python-client==2.100.0  # For Gmail API
-# google-auth==2.23.0
-# google-auth-httplib2==0.1.1
-# google-auth-oauthlib==1.0.0
-# python-docx==1.1.0  # For .docx processing
-# language-tool-python==2.7.1  # For spell checking
-# openai==1.10.0  # For GPT-4 integration
-# anthropic==0.18.0  # For Claude integration
-# redis==5.0.1  # For caching
-# celery==5.3.4  # For async tasks
-# slack-sdk==3.26.0  # For Slack alerts
