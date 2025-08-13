@@ -9,7 +9,7 @@ import os
 
 # Page config
 st.set_page_config(
-    page_title="NDA Dashboard",
+    page_title="JMM Associates - NDA Dashboard",
     page_icon="📄",
     layout="wide"
 )
@@ -196,10 +196,10 @@ with col2:
 
 # Title with mode indicator
 if access_mode == 'admin':
-    st.title("📄 NDA Dashboard & Document QA System [Admin Mode]")
-    st.markdown("**Document Quality Analysis using Spelling Check Data**")
+    st.title("📄 JMM NDA Dashboard & Document QA System [Admin Mode]")
+    st.markdown("**Document Quality Analysis**")
 else:
-    st.title("📄 NDA Dashboard & Document QA System [View Only]")
+    st.title("📄 JMM NDA Dashboard & Document QA System [View Only]")
     st.markdown("**Viewing shared dashboard with quality metrics**")
 
 # Admin Panel
