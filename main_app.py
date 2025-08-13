@@ -170,14 +170,9 @@ def load_data_from_package(data_package):
 # ==================== Access Control ====================
 def check_access_mode():
     """Determine if user is in admin mode or viewer mode"""
-    query_params = st.query_params
-    admin_key = query_params.get('admin', [''])[0] if 'admin' in query_params else ''
-    
-    if admin_key == 'upload' or st.session_state.get('is_admin', False):
-        st.session_state.is_admin = True
-        return 'admin'
-    else:
-        return 'viewer'
+    # For Streamlit, let's make it simpler - always show admin panel
+    # You can add authentication later if needed
+    return 'admin'  # Always admin mode for now so you can upload
 
 # ==================== Initialize Session State ====================
 if 'uploaded_data' not in st.session_state:
@@ -188,7 +183,16 @@ if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
 
 # ==================== Main App ====================
-access_mode = check_access_mode()
+# Add mode selector at the top
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    access_mode = st.radio(
+        "Select Access Mode",
+        ["Admin (Can Upload)", "Viewer (Read Only)"],
+        horizontal=True,
+        index=0  # Default to Admin
+    )
+    access_mode = 'admin' if 'Admin' in access_mode else 'viewer'
 
 # Title with mode indicator
 if access_mode == 'admin':
@@ -694,7 +698,6 @@ with st.sidebar:
             st.write("**Issue Statistics:**")
             st.write(f"📝 Total Issues: {df['Total_Issues'].sum()}")
             st.write(f"📊 Avg per Doc: {df['Total_Issues'].mean():.1f}")
-
 # Footer
 st.divider()
 st.caption("JMM Associates NDA Dashboard v5.0 | Quality Analysis from Column Q Spelling Data | ©JMM310,LLC 2024")
