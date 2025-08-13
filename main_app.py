@@ -1,7 +1,8 @@
-# main_app.py - Simple working version that will display correctly
+# main_app.py - NDA Dashboard with Excel Upload Feature
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import io
 
 # Page config
 st.set_page_config(
@@ -10,239 +11,358 @@ st.set_page_config(
     layout="wide"
 )
 
-# Initialize data in session state
-if 'threads' not in st.session_state:
-    st.session_state.threads = [
-        {
-            'Thread ID': 'T001',
-            'Subject': 'NDA Agreement - Acme Corp',
-            'Client': 'Acme Corp',
-            'Status': '🟡 Pending',
-            'Priority': 'High',
-            'Received': datetime.now() - timedelta(hours=2),
-            'Deadline': datetime.now() + timedelta(hours=22)
-        },
-        {
-            'Thread ID': 'T002',
-            'Subject': 'Confidentiality Agreement - TechCo',
-            'Client': 'TechCo',
-            'Status': '🔵 In Review',
-            'Priority': 'Medium',
-            'Received': datetime.now() - timedelta(hours=5),
-            'Deadline': datetime.now() + timedelta(hours=19)
-        },
-        {
-            'Thread ID': 'T003',
-            'Subject': 'NDA - StartupXYZ',
-            'Client': 'StartupXYZ',
-            'Status': '🟢 Completed',
-            'Priority': 'Low',
-            'Received': datetime.now() - timedelta(days=1),
-            'Deadline': datetime.now() + timedelta(hours=10)
-        }
-    ]
+# Initialize session state
+if 'uploaded_data' not in st.session_state:
+    st.session_state.uploaded_data = None
+if 'processed_files' not in st.session_state:
+    st.session_state.processed_files = []
 
 # Title
 st.title("📄 NDA Dashboard & Document QA System")
-st.markdown("**Real-time monitoring of NDA emails and document quality**")
+st.markdown("**Upload your daily NDA tracker to monitor performance**")
 
-# Calculate KPIs
-total_threads = len(st.session_state.threads)
-pending = len([t for t in st.session_state.threads if 'Pending' in t['Status']])
-in_review = len([t for t in st.session_state.threads if 'In Review' in t['Status']])
-completed = len([t for t in st.session_state.threads if 'Completed' in t['Status']])
-overdue = len([t for t in st.session_state.threads if t['Deadline'] < datetime.now() and 'Completed' not in t['Status']])
-
-# KPI Cards
-st.markdown("### 📊 Key Performance Indicators")
-col1, col2, col3, col4, col5 = st.columns(5)
-
-with col1:
-    st.metric(
-        label="📥 Total Threads",
-        value=total_threads,
-        delta="Active"
-    )
-
-with col2:
-    st.metric(
-        label="⏳ Pending",
-        value=pending,
-        delta="To process"
-    )
-
-with col3:
-    st.metric(
-        label="👀 In Review",
-        value=in_review,
-        delta="Processing"
-    )
-
-with col4:
-    st.metric(
-        label="✅ Completed",
-        value=completed,
-        delta="Done"
-    )
-
-with col5:
-    st.metric(
-        label="⚠️ Overdue",
-        value=overdue,
-        delta="Urgent" if overdue > 0 else "On track"
-    )
-
-# Divider
-st.divider()
-
-# Tabs
-tab1, tab2, tab3 = st.tabs(["📧 Email Threads", "📊 Document Quality", "📝 Feedback & Settings"])
-
-# Tab 1: Email Threads
-with tab1:
-    st.header("Email Threads Monitor")
+# File Upload Section
+with st.container():
+    st.markdown("### 📤 Upload Today's NDA Tracker")
+    col1, col2 = st.columns([3, 1])
     
-    # Add new thread section
-    with st.expander("➕ Add New Thread"):
-        col1, col2 = st.columns(2)
-        with col1:
-            subject = st.text_input("Subject")
-            client = st.selectbox("Client", ["Acme Corp", "TechCo", "StartupXYZ", "Other"])
-        with col2:
-            priority = st.selectbox("Priority", ["High", "Medium", "Low"])
-            status = st.selectbox("Status", ["🟡 Pending", "🔵 In Review", "🟢 Completed"])
-        
-        if st.button("Add Thread", type="primary"):
-            new_thread = {
-                'Thread ID': f'T{len(st.session_state.threads)+1:03d}',
-                'Subject': subject or f'New NDA - {client}',
-                'Client': client,
-                'Status': status,
-                'Priority': priority,
-                'Received': datetime.now(),
-                'Deadline': datetime.now() + timedelta(hours=24)
-            }
-            st.session_state.threads.append(new_thread)
-            st.success("✅ Thread added successfully!")
-            st.rerun()
-    
-    # Display threads
-    if st.session_state.threads:
-        df = pd.DataFrame(st.session_state.threads)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        
-        # Quick stats
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Status Distribution")
-            status_data = pd.DataFrame({
-                'Status': ['Pending', 'In Review', 'Completed'],
-                'Count': [pending, in_review, completed]
-            })
-            st.bar_chart(status_data.set_index('Status'))
-        
-        with col2:
-            st.subheader("Priority Breakdown")
-            priority_counts = df['Priority'].value_counts()
-            st.bar_chart(priority_counts)
-    else:
-        st.info("No threads to display. Add a new thread to get started!")
-
-# Tab 2: Document Quality
-with tab2:
-    st.header("Document Quality Analysis")
-    
-    # Sample quality data
-    quality_data = pd.DataFrame({
-        'Document': ['nda_acme_v1.docx', 'agreement_techco.docx', 'confidential_startup.docx'],
-        'Quality Score': [85, 92, 78],
-        'Spelling Issues': [2, 0, 4],
-        'Tracked Changes': [1, 0, 3],
-        'Status': ['✅ Reviewed', '✅ Reviewed', '⚠️ Needs Review']
-    })
-    
-    # Display metrics
-    col1, col2, col3 = st.columns(3)
     with col1:
-        avg_quality = quality_data['Quality Score'].mean()
-        st.metric("Average Quality Score", f"{avg_quality:.1f}/100")
+        uploaded_file = st.file_uploader(
+            "Choose your NDA Tracker Excel file",
+            type=['xlsx', 'xls'],
+            help="Upload the daily Excel file from your Google Drive"
+        )
+    
     with col2:
-        total_issues = quality_data['Spelling Issues'].sum() + quality_data['Tracked Changes'].sum()
-        st.metric("Total Issues Found", total_issues)
+        st.markdown("#### Quick Stats")
+        if st.session_state.uploaded_data is not None:
+            st.success("✅ File Loaded")
+            st.metric("Last Update", datetime.now().strftime("%H:%M"))
+        else:
+            st.info("📁 No file loaded")
+
+# Process uploaded file
+if uploaded_file is not None:
+    try:
+        # Read all sheets
+        excel_file = pd.ExcelFile(uploaded_file)
+        
+        # Check which sheets are available
+        available_sheets = excel_file.sheet_names
+        
+        # Try to read the Test Sheet (which has the actual data)
+        if 'Test Sheet' in available_sheets:
+            df = pd.read_excel(uploaded_file, sheet_name='Test Sheet')
+        elif 'Sheet1' in available_sheets:
+            df = pd.read_excel(uploaded_file, sheet_name='Sheet1')
+        else:
+            df = pd.read_excel(uploaded_file, sheet_name=0)  # Read first sheet
+        
+        # Store in session state
+        st.session_state.uploaded_data = df
+        st.session_state.last_upload_time = datetime.now()
+        
+        # Also read Dashboard sheet if available
+        if 'Dashboard' in available_sheets:
+            st.session_state.dashboard_data = pd.read_excel(uploaded_file, sheet_name='Dashboard')
+        
+        # Read Run Log if available
+        if 'Run Log' in available_sheets:
+            st.session_state.run_log = pd.read_excel(uploaded_file, sheet_name='Run Log')
+        
+        st.success(f"✅ Successfully loaded {len(df)} NDA records from '{uploaded_file.name}'")
+        
+    except Exception as e:
+        st.error(f"Error reading file: {str(e)}")
+
+# Display KPIs if data is loaded
+if st.session_state.uploaded_data is not None:
+    df = st.session_state.uploaded_data
+    
+    # Calculate KPIs
+    st.markdown("### 📊 Key Performance Indicators")
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        total_ndas = len(df)
+        st.metric("📥 Total NDAs", total_ndas)
+    
+    with col2:
+        if 'Status' in df.columns:
+            assigned = len(df[df['Status'] == 'Assigned'])
+            st.metric("📋 Assigned", assigned)
+        else:
+            st.metric("📋 Assigned", "N/A")
+    
     with col3:
-        reviewed = len(quality_data[quality_data['Status'].str.contains('Reviewed')])
-        st.metric("Documents Reviewed", f"{reviewed}/{len(quality_data)}")
+        if 'Status' in df.columns:
+            completed = len(df[df['Status'] == 'Completed'])
+            st.metric("✅ Completed", completed)
+        else:
+            st.metric("✅ Completed", "N/A")
     
-    # Document details
-    st.subheader("Document Details")
-    st.dataframe(quality_data, use_container_width=True, hide_index=True)
+    with col4:
+        if 'Turnaround Time (hrs)' in df.columns:
+            avg_turnaround = df['Turnaround Time (hrs)'].dropna().mean()
+            st.metric("⏱️ Avg Turnaround", f"{avg_turnaround:.1f}h" if not pd.isna(avg_turnaround) else "N/A")
+        else:
+            st.metric("⏱️ Avg Turnaround", "N/A")
     
-    # Upload new document
-    st.subheader("Upload Document for Analysis")
-    uploaded_file = st.file_uploader("Choose a file", type=['docx', 'pdf', 'txt'])
-    if uploaded_file is not None:
-        st.success(f"✅ File '{uploaded_file.name}' uploaded successfully!")
-        if st.button("Analyze Document"):
-            with st.spinner("Analyzing document..."):
-                # Simulate analysis
-                import time
-                time.sleep(2)
-            st.success("Analysis complete! Quality Score: 88/100")
-
-# Tab 3: Feedback & Settings
-with tab3:
-    st.header("Feedback & System Settings")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Submit Feedback")
-        feedback_type = st.selectbox("Feedback Type", ["Bug Report", "Feature Request", "Quality Issue"])
-        feedback_text = st.text_area("Your Feedback")
-        if st.button("Submit Feedback", type="primary"):
-            st.success("Thank you for your feedback!")
-    
-    with col2:
-        st.subheader("System Settings")
-        st.slider("SLA Hours", 1, 72, 24)
-        st.checkbox("Enable Email Notifications", value=True)
-        st.checkbox("Auto-classify Emails", value=True)
-        st.selectbox("Quality Check Model", ["Basic", "Advanced", "AI-Powered"])
-        
-        if st.button("Save Settings"):
-            st.success("Settings saved!")
-
-# Sidebar
-with st.sidebar:
-    st.header("🔧 Quick Actions")
-    
-    if st.button("🔄 Refresh Dashboard", use_container_width=True):
-        st.rerun()
-    
-    if st.button("📊 Export Report", use_container_width=True):
-        st.success("Report exported!")
-    
-    if st.button("🔍 Run Quality Check", use_container_width=True):
-        with st.spinner("Running..."):
-            import time
-            time.sleep(1)
-        st.success("Check complete!")
+    with col5:
+        if 'Customer' in df.columns:
+            unique_customers = df['Customer'].nunique()
+            st.metric("🏢 Customers", unique_customers)
+        else:
+            st.metric("🏢 Customers", "N/A")
     
     st.divider()
     
-    st.header("📈 System Status")
-    st.success("✅ System Online")
-    st.info(f"Last Update: {datetime.now().strftime('%H:%M:%S')}")
+    # Tabs for different views
+    tab1, tab2, tab3, tab4 = st.tabs(["📧 NDA Threads", "📊 Analytics", "📈 Trends", "📋 Run Log"])
+    
+    # Tab 1: NDA Threads
+    with tab1:
+        st.header("NDA Email Threads")
+        
+        # Filters
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if 'Status' in df.columns:
+                status_filter = st.multiselect(
+                    "Filter by Status",
+                    options=df['Status'].dropna().unique().tolist(),
+                    default=df['Status'].dropna().unique().tolist()
+                )
+            else:
+                status_filter = []
+        
+        with col2:
+            if 'Customer' in df.columns:
+                customer_filter = st.multiselect(
+                    "Filter by Customer",
+                    options=df['Customer'].dropna().unique().tolist(),
+                    default=[]
+                )
+            else:
+                customer_filter = []
+        
+        with col3:
+            search_term = st.text_input("🔍 Search in Subject", "")
+        
+        # Apply filters
+        filtered_df = df.copy()
+        
+        if status_filter and 'Status' in df.columns:
+            filtered_df = filtered_df[filtered_df['Status'].isin(status_filter)]
+        
+        if customer_filter and 'Customer' in df.columns:
+            filtered_df = filtered_df[filtered_df['Customer'].isin(customer_filter)]
+        
+        if search_term and 'Subject' in df.columns:
+            filtered_df = filtered_df[filtered_df['Subject'].str.contains(search_term, case=False, na=False)]
+        
+        # Display filtered data
+        st.markdown(f"**Showing {len(filtered_df)} of {len(df)} records**")
+        
+        # Format the dataframe for display
+        display_columns = []
+        if 'Timestamp' in filtered_df.columns:
+            display_columns.append('Timestamp')
+        if 'From' in filtered_df.columns:
+            display_columns.append('From')
+        if 'Subject' in filtered_df.columns:
+            display_columns.append('Subject')
+        if 'Status' in filtered_df.columns:
+            display_columns.append('Status')
+        if 'Customer' in filtered_df.columns:
+            display_columns.append('Customer')
+        if 'Turnaround Time (hrs)' in filtered_df.columns:
+            display_columns.append('Turnaround Time (hrs)')
+        
+        if display_columns:
+            st.dataframe(
+                filtered_df[display_columns],
+                use_container_width=True,
+                height=400
+            )
+        else:
+            st.dataframe(filtered_df, use_container_width=True, height=400)
+        
+        # Export filtered data
+        if len(filtered_df) > 0:
+            csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Filtered Data as CSV",
+                data=csv,
+                file_name=f"nda_filtered_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+    
+    # Tab 2: Analytics
+    with tab2:
+        st.header("Analytics Dashboard")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Status Distribution")
+            if 'Status' in df.columns:
+                status_counts = df['Status'].value_counts()
+                st.bar_chart(status_counts)
+            else:
+                st.info("Status column not found in data")
+        
+        with col2:
+            st.subheader("Top Customers")
+            if 'Customer' in df.columns:
+                customer_counts = df['Customer'].value_counts().head(10)
+                st.bar_chart(customer_counts)
+            else:
+                st.info("Customer column not found in data")
+        
+        # Turnaround time analysis
+        if 'Turnaround Time (hrs)' in df.columns:
+            st.subheader("Turnaround Time Analysis")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                avg_time = df['Turnaround Time (hrs)'].dropna().mean()
+                st.metric("Average", f"{avg_time:.1f} hours" if not pd.isna(avg_time) else "N/A")
+            
+            with col2:
+                median_time = df['Turnaround Time (hrs)'].dropna().median()
+                st.metric("Median", f"{median_time:.1f} hours" if not pd.isna(median_time) else "N/A")
+            
+            with col3:
+                max_time = df['Turnaround Time (hrs)'].dropna().max()
+                st.metric("Maximum", f"{max_time:.1f} hours" if not pd.isna(max_time) else "N/A")
+            
+            # Distribution chart
+            turnaround_data = df['Turnaround Time (hrs)'].dropna()
+            if len(turnaround_data) > 0:
+                st.bar_chart(pd.cut(turnaround_data, bins=10).value_counts().sort_index())
+        
+        # Dashboard data if available
+        if 'dashboard_data' in st.session_state:
+            st.subheader("Summary from Dashboard Sheet")
+            st.dataframe(st.session_state.dashboard_data, use_container_width=True)
+    
+    # Tab 3: Trends
+    with tab3:
+        st.header("Trend Analysis")
+        
+        if 'Timestamp' in df.columns:
+            # Convert timestamp to datetime
+            df['Date'] = pd.to_datetime(df['Timestamp']).dt.date
+            
+            # Daily volume trend
+            daily_counts = df.groupby('Date').size().reset_index(name='Count')
+            
+            st.subheader("Daily NDA Volume")
+            st.line_chart(daily_counts.set_index('Date'))
+            
+            # Status trend over time
+            if 'Status' in df.columns:
+                st.subheader("Status Trend Over Time")
+                status_trend = df.groupby(['Date', 'Status']).size().unstack(fill_value=0)
+                st.area_chart(status_trend)
+        else:
+            st.info("Timestamp column not found - unable to show trends")
+    
+    # Tab 4: Run Log
+    with tab4:
+        st.header("Processing Run Log")
+        
+        if 'run_log' in st.session_state:
+            run_log = st.session_state.run_log
+            
+            # Summary metrics
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                total_runs = len(run_log)
+                st.metric("Total Runs", total_runs)
+            
+            with col2:
+                if 'NDAs Processed' in run_log.columns:
+                    total_processed = run_log['NDAs Processed'].sum()
+                    st.metric("Total NDAs Processed", total_processed)
+            
+            with col3:
+                if 'Completed Count' in run_log.columns:
+                    total_completed = run_log['Completed Count'].sum()
+                    st.metric("Total Completed", total_completed)
+            
+            # Display run log
+            st.subheader("Recent Runs")
+            st.dataframe(run_log.tail(20), use_container_width=True)
+            
+            # Processing trend
+            if 'Run Timestamp' in run_log.columns and 'NDAs Processed' in run_log.columns:
+                st.subheader("Processing Trend")
+                run_log['Date'] = pd.to_datetime(run_log['Run Timestamp']).dt.date
+                daily_processing = run_log.groupby('Date')['NDAs Processed'].sum()
+                st.line_chart(daily_processing)
+        else:
+            st.info("Run Log sheet not found in uploaded file")
+
+else:
+    # Show instructions when no file is uploaded
+    st.info("""
+    ### 📤 How to use this dashboard:
+    
+    1. **Download your NDA Tracker** from Google Drive
+    2. **Upload the Excel file** using the uploader above
+    3. **View your KPIs and analytics** instantly
+    
+    The dashboard will automatically:
+    - Parse all sheets in your Excel file
+    - Calculate KPIs and metrics
+    - Show status distribution and trends
+    - Provide filtering and search capabilities
+    - Allow data export in CSV format
+    
+    **Supported columns:**
+    - Timestamp, From, Subject, Status, Customer
+    - Thread ID, File Link, Completed Timestamp
+    - Turnaround Time (hrs), Message Count, Audit Flag
+    """)
+
+# Sidebar
+with st.sidebar:
+    st.header("🔧 Dashboard Controls")
+    
+    if st.button("🔄 Clear Data", use_container_width=True):
+        st.session_state.uploaded_data = None
+        st.session_state.dashboard_data = None
+        st.session_state.run_log = None
+        st.rerun()
+    
+    st.divider()
+    
+    st.header("📊 Quick Stats")
+    if st.session_state.uploaded_data is not None:
+        df = st.session_state.uploaded_data
+        st.success("✅ Data Loaded")
+        st.metric("Total Records", len(df))
+        if 'Status' in df.columns:
+            st.metric("Unique Statuses", df['Status'].nunique())
+        if 'Customer' in df.columns:
+            st.metric("Unique Customers", df['Customer'].nunique())
+    else:
+        st.info("No data loaded")
     
     st.divider()
     
     st.header("ℹ️ Info")
     st.write("""
-    **Version:** 1.0.0  
-    **Mode:** Demo  
-    **Database:** Session State  
+    **Version:** 2.0.0  
+    **Mode:** File Upload  
+    **Last Update:** Real-time  
     """)
 
 # Footer
 st.divider()
-st.caption("NDA Dashboard v1.0 | Built with Streamlit | © 2024")
+st.caption("NDA Dashboard v2.0 | Upload-based solution - No API required | © JMM310 2024")
