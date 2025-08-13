@@ -223,6 +223,9 @@ if st.session_state.uploaded_data is not None:
                 st.info("Customer column not found in data")
         
         # Turnaround time analysis
+       # Fix for the Analytics tab - replace the problematic section around line 240-250
+
+        # Turnaround time analysis
         if 'Turnaround Time (hrs)' in df.columns:
             st.subheader("Turnaround Time Analysis")
             col1, col2, col3 = st.columns(3)
@@ -239,130 +242,24 @@ if st.session_state.uploaded_data is not None:
                 max_time = df['Turnaround Time (hrs)'].dropna().max()
                 st.metric("Maximum", f"{max_time:.1f} hours" if not pd.isna(max_time) else "N/A")
             
-            # Distribution chart
+            # Distribution chart - FIXED VERSION
             turnaround_data = df['Turnaround Time (hrs)'].dropna()
             if len(turnaround_data) > 0:
-                st.bar_chart(pd.cut(turnaround_data, bins=10).value_counts().sort_index())
-        
-        # Dashboard data if available
-        if 'dashboard_data' in st.session_state:
-            st.subheader("Summary from Dashboard Sheet")
-            st.dataframe(st.session_state.dashboard_data, use_container_width=True)
-    
-    # Tab 3: Trends
-    with tab3:
-        st.header("Trend Analysis")
-        
-        if 'Timestamp' in df.columns:
-            # Convert timestamp to datetime
-            df['Date'] = pd.to_datetime(df['Timestamp']).dt.date
-            
-            # Daily volume trend
-            daily_counts = df.groupby('Date').size().reset_index(name='Count')
-            
-            st.subheader("Daily NDA Volume")
-            st.line_chart(daily_counts.set_index('Date'))
-            
-            # Status trend over time
-            if 'Status' in df.columns:
-                st.subheader("Status Trend Over Time")
-                status_trend = df.groupby(['Date', 'Status']).size().unstack(fill_value=0)
-                st.area_chart(status_trend)
-        else:
-            st.info("Timestamp column not found - unable to show trends")
-    
-    # Tab 4: Run Log
-    with tab4:
-        st.header("Processing Run Log")
-        
-        if 'run_log' in st.session_state:
-            run_log = st.session_state.run_log
-            
-            # Summary metrics
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                total_runs = len(run_log)
-                st.metric("Total Runs", total_runs)
-            
-            with col2:
-                if 'NDAs Processed' in run_log.columns:
-                    total_processed = run_log['NDAs Processed'].sum()
-                    st.metric("Total NDAs Processed", total_processed)
-            
-            with col3:
-                if 'Completed Count' in run_log.columns:
-                    total_completed = run_log['Completed Count'].sum()
-                    st.metric("Total Completed", total_completed)
-            
-            # Display run log
-            st.subheader("Recent Runs")
-            st.dataframe(run_log.tail(20), use_container_width=True)
-            
-            # Processing trend
-            if 'Run Timestamp' in run_log.columns and 'NDAs Processed' in run_log.columns:
-                st.subheader("Processing Trend")
-                run_log['Date'] = pd.to_datetime(run_log['Run Timestamp']).dt.date
-                daily_processing = run_log.groupby('Date')['NDAs Processed'].sum()
-                st.line_chart(daily_processing)
-        else:
-            st.info("Run Log sheet not found in uploaded file")
-
-else:
-    # Show instructions when no file is uploaded
-    st.info("""
-    ### 📤 How to use this dashboard:
-    
-    1. **Download your NDA Tracker** from Google Drive
-    2. **Upload the Excel file** using the uploader above
-    3. **View your KPIs and analytics** instantly
-    
-    The dashboard will automatically:
-    - Parse all sheets in your Excel file
-    - Calculate KPIs and metrics
-    - Show status distribution and trends
-    - Provide filtering and search capabilities
-    - Allow data export in CSV format
-    
-    **Supported columns:**
-    - Timestamp, From, Subject, Status, Customer
-    - Thread ID, File Link, Completed Timestamp
-    - Turnaround Time (hrs), Message Count, Audit Flag
-    """)
-
-# Sidebar
-with st.sidebar:
-    st.header("🔧 Dashboard Controls")
-    
-    if st.button("🔄 Clear Data", use_container_width=True):
-        st.session_state.uploaded_data = None
-        st.session_state.dashboard_data = None
-        st.session_state.run_log = None
-        st.rerun()
-    
-    st.divider()
-    
-    st.header("📊 Quick Stats")
-    if st.session_state.uploaded_data is not None:
-        df = st.session_state.uploaded_data
-        st.success("✅ Data Loaded")
-        st.metric("Total Records", len(df))
-        if 'Status' in df.columns:
-            st.metric("Unique Statuses", df['Status'].nunique())
-        if 'Customer' in df.columns:
-            st.metric("Unique Customers", df['Customer'].nunique())
-    else:
-        st.info("No data loaded")
-    
-    st.divider()
-    
-    st.header("ℹ️ Info")
-    st.write("""
-    **Version:** 2.0.0  
-    **Mode:** File Upload  
-    **Last Update:** Real-time  
-    """)
-
-# Footer
-st.divider()
-st.caption("NDA Dashboard v2.0 | Upload-based solution - No API required | © JMM310 2024")
+                st.subheader("Turnaround Time Distribution")
+                
+                # Create bins and count
+                bins = [0, 6, 12, 24, 48, 72, 100, 200, 500]
+                labels = ['0-6h', '6-12h', '12-24h', '24-48h', '48-72h', '72-100h', '100-200h', '200h+']
+                
+                # Categorize the data
+                binned_data = pd.cut(turnaround_data, bins=bins, labels=labels, include_lowest=True)
+                bin_counts = binned_data.value_counts().sort_index()
+                
+                # Create a proper DataFrame for the chart
+                chart_df = pd.DataFrame({
+                    'Time Range': bin_counts.index.astype(str),
+                    'Count': bin_counts.values
+                })
+                
+                # Display as bar chart
+                st.bar_chart(chart_df.set_index('Time Range'))
