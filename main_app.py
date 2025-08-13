@@ -400,7 +400,7 @@ if st.session_state.uploaded_data is not None:
     with tab1:
         st.header("NDA Email Threads with Quality Metrics")
         
-        # Filters
+        # Filters - First Row
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -414,6 +414,16 @@ if st.session_state.uploaded_data is not None:
                 status_filter = []
         
         with col2:
+            if 'Customer' in df.columns:
+                customer_filter = st.multiselect(
+                    "Filter by Customer",
+                    options=sorted(df['Customer'].dropna().unique().tolist()),
+                    default=[]
+                )
+            else:
+                customer_filter = []
+        
+        with col3:
             if 'Quality_Category' in df.columns:
                 quality_filter = st.multiselect(
                     "Filter by Quality",
@@ -423,8 +433,27 @@ if st.session_state.uploaded_data is not None:
             else:
                 quality_filter = []
         
-        with col3:
+        # Filters - Second Row
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            search_term = st.text_input("🔍 Search in Subject", "")
+        
+        with col2:
             min_issues = st.number_input("Min Issues to Show", min_value=0, value=0)
+        
+        with col3:
+            # Quality score range filter
+            if 'Quality_Score' in df.columns:
+                score_range = st.slider(
+                    "Quality Score Range",
+                    min_value=0,
+                    max_value=100,
+                    value=(0, 100),
+                    step=5
+                )
+            else:
+                score_range = (0, 100)
         
         # Apply filters
         filtered_df = df.copy()
@@ -432,11 +461,21 @@ if st.session_state.uploaded_data is not None:
         if status_filter and 'Status' in df.columns:
             filtered_df = filtered_df[filtered_df['Status'].isin(status_filter)]
         
+        if customer_filter and 'Customer' in df.columns:
+            filtered_df = filtered_df[filtered_df['Customer'].isin(customer_filter)]
+        
         if quality_filter and 'Quality_Category' in df.columns:
             filtered_df = filtered_df[filtered_df['Quality_Category'].isin(quality_filter)]
         
+        if search_term and 'Subject' in df.columns:
+            filtered_df = filtered_df[filtered_df['Subject'].str.contains(search_term, case=False, na=False)]
+        
         if 'Total_Issues' in df.columns:
             filtered_df = filtered_df[filtered_df['Total_Issues'] >= min_issues]
+        
+        if 'Quality_Score' in df.columns:
+            filtered_df = filtered_df[(filtered_df['Quality_Score'] >= score_range[0]) & 
+                                     (filtered_df['Quality_Score'] <= score_range[1])]
         
         # Display
         st.markdown(f"**Showing {len(filtered_df)} of {len(df)} records**")
@@ -698,6 +737,7 @@ with st.sidebar:
             st.write("**Issue Statistics:**")
             st.write(f"📝 Total Issues: {df['Total_Issues'].sum()}")
             st.write(f"📊 Avg per Doc: {df['Total_Issues'].mean():.1f}")
+
 # Footer
 st.divider()
 st.caption("JMM Associates NDA Dashboard v5.0 | Quality Analysis from Column Q Spelling Data | ©JMM310,LLC 2024")
