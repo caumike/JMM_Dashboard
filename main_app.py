@@ -1,4 +1,4 @@
-# main_app.py - NDA Dashboard with Excel Upload Feature
+# main_app.py - Complete NDA Dashboard with Excel Upload Feature (FIXED VERSION)
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
@@ -222,10 +222,7 @@ if st.session_state.uploaded_data is not None:
             else:
                 st.info("Customer column not found in data")
         
-        # Turnaround time analysis
-       # Fix for the Analytics tab - replace the problematic section around line 240-250
-
-        # Turnaround time analysis
+        # Turnaround time analysis - FIXED VERSION
         if 'Turnaround Time (hrs)' in df.columns:
             st.subheader("Turnaround Time Analysis")
             col1, col2, col3 = st.columns(3)
@@ -263,3 +260,170 @@ if st.session_state.uploaded_data is not None:
                 
                 # Display as bar chart
                 st.bar_chart(chart_df.set_index('Time Range'))
+        
+        # Dashboard data if available
+        if 'dashboard_data' in st.session_state:
+            st.subheader("Summary from Dashboard Sheet")
+            st.dataframe(st.session_state.dashboard_data, use_container_width=True)
+    
+    # Tab 3: Trends
+    with tab3:
+        st.header("Trend Analysis")
+        
+        if 'Timestamp' in df.columns:
+            # Convert timestamp to datetime
+            df_copy = df.copy()
+            df_copy['Date'] = pd.to_datetime(df_copy['Timestamp']).dt.date
+            
+            # Daily volume trend
+            daily_counts = df_copy.groupby('Date').size().reset_index(name='Count')
+            
+            st.subheader("Daily NDA Volume")
+            st.line_chart(daily_counts.set_index('Date'))
+            
+            # Status trend over time
+            if 'Status' in df_copy.columns:
+                st.subheader("Status Trend Over Time")
+                status_trend = df_copy.groupby(['Date', 'Status']).size().unstack(fill_value=0)
+                st.area_chart(status_trend)
+            
+            # Customer activity over time
+            if 'Customer' in df_copy.columns:
+                st.subheader("Top 5 Most Active Customers Over Time")
+                top_customers = df_copy['Customer'].value_counts().head(5).index
+                customer_trend = df_copy[df_copy['Customer'].isin(top_customers)].groupby(['Date', 'Customer']).size().unstack(fill_value=0)
+                st.line_chart(customer_trend)
+        else:
+            st.info("Timestamp column not found - unable to show trends")
+    
+    # Tab 4: Run Log
+    with tab4:
+        st.header("Processing Run Log")
+        
+        if 'run_log' in st.session_state:
+            run_log = st.session_state.run_log
+            
+            # Summary metrics
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                total_runs = len(run_log)
+                st.metric("Total Runs", total_runs)
+            
+            with col2:
+                if 'NDAs Processed' in run_log.columns:
+                    total_processed = run_log['NDAs Processed'].sum()
+                    st.metric("Total NDAs Processed", int(total_processed))
+            
+            with col3:
+                if 'Completed Count' in run_log.columns:
+                    total_completed = run_log['Completed Count'].sum()
+                    st.metric("Total Completed", int(total_completed))
+            
+            # Display run log
+            st.subheader("Recent Runs (Last 20)")
+            display_log = run_log.tail(20).copy()
+            
+            # Format the timestamp if it exists
+            if 'Run Timestamp' in display_log.columns:
+                display_log['Run Timestamp'] = pd.to_datetime(display_log['Run Timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+            
+            st.dataframe(display_log, use_container_width=True)
+            
+            # Processing trend
+            if 'Run Timestamp' in run_log.columns and 'NDAs Processed' in run_log.columns:
+                st.subheader("Processing Trend")
+                run_log_copy = run_log.copy()
+                run_log_copy['Date'] = pd.to_datetime(run_log_copy['Run Timestamp']).dt.date
+                daily_processing = run_log_copy.groupby('Date')['NDAs Processed'].sum()
+                if len(daily_processing) > 0:
+                    st.line_chart(daily_processing)
+        else:
+            st.info("Run Log sheet not found in uploaded file")
+
+else:
+    # Show instructions when no file is uploaded
+    st.info("""
+    ### 📤 How to use this dashboard:
+    
+    1. **Download your NDA Tracker** from Google Drive
+    2. **Upload the Excel file** using the uploader above
+    3. **View your KPIs and analytics** instantly
+    
+    The dashboard will automatically:
+    - Parse all sheets in your Excel file
+    - Calculate KPIs and metrics
+    - Show status distribution and trends
+    - Provide filtering and search capabilities
+    - Allow data export in CSV format
+    
+    **Supported columns:**
+    - Timestamp, From, Subject, Status, Customer
+    - Thread ID, File Link, Completed Timestamp
+    - Turnaround Time (hrs), Message Count, Audit Flag
+    """)
+
+# Sidebar
+with st.sidebar:
+    st.header("🔧 Dashboard Controls")
+    
+    if st.button("🔄 Clear Data", use_container_width=True):
+        st.session_state.uploaded_data = None
+        st.session_state.dashboard_data = None
+        st.session_state.run_log = None
+        st.rerun()
+    
+    st.divider()
+    
+    st.header("📊 Quick Stats")
+    if st.session_state.uploaded_data is not None:
+        df = st.session_state.uploaded_data
+        st.success("✅ Data Loaded")
+        st.metric("Total Records", len(df))
+        if 'Status' in df.columns:
+            st.metric("Unique Statuses", df['Status'].nunique())
+        if 'Customer' in df.columns:
+            st.metric("Unique Customers", df['Customer'].nunique())
+    else:
+        st.info("No data loaded")
+    
+    st.divider()
+    
+    st.header("⚡ Quick Actions")
+    
+    if st.session_state.uploaded_data is not None:
+        # Quick filter for overdue items
+        if 'Turnaround Time (hrs)' in st.session_state.uploaded_data.columns:
+            if st.button("🚨 Show Overdue (>24h)", use_container_width=True):
+                overdue = st.session_state.uploaded_data[
+                    st.session_state.uploaded_data['Turnaround Time (hrs)'] > 24
+                ]
+                st.metric("Overdue Items", len(overdue))
+        
+        # Quick stats
+        if st.button("📈 Show Today's Stats", use_container_width=True):
+            today_data = st.session_state.uploaded_data[
+                pd.to_datetime(st.session_state.uploaded_data['Timestamp']).dt.date == datetime.now().date()
+            ] if 'Timestamp' in st.session_state.uploaded_data.columns else pd.DataFrame()
+            
+            if len(today_data) > 0:
+                st.metric("Today's NDAs", len(today_data))
+            else:
+                st.info("No data for today")
+    
+    st.divider()
+    
+    st.header("ℹ️ System Info")
+    st.write("""
+    **Version:** 2.0.1  
+    **Mode:** File Upload  
+    **Status:** Active  
+    """)
+    
+    # Show last update time
+    if 'last_upload_time' in st.session_state:
+        st.caption(f"Last upload: {st.session_state.last_upload_time.strftime('%H:%M:%S')}")
+
+# Footer
+st.divider()
+st.caption("JMM Associates NDA Dashboard v2.0.1 | Upload-based solution - No API required | ©JMM310,LLC 2024")
